@@ -1,0 +1,6 @@
+# Normalize to LF everywhere. Shell scripts copied into Linux containers break with CRLF,
+# and core.autocrlf=true on Windows would otherwise convert them on checkout.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
