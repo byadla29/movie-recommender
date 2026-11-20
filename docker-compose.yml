@@ -40,6 +40,10 @@ services:
       ENVIRONMENT: local
       DATABASE_URL: postgresql+psycopg://user_svc:${USER_SVC_DB_PASSWORD}@postgres:5432/user_db
       RUN_MIGRATIONS_ON_START: "true"
+      # Token verification (public values, no secrets). Empty issuer = /v1/me/* answer 503.
+      AUTH_ISSUER: ${CLERK_ISSUER_URL:-}
+      # Tokens must have been requested by our frontend (Clerk's "azp" claim).
+      AUTH_AUTHORIZED_PARTIES: '["http://127.0.0.1:3000", "http://localhost:3000"]'
     ports:
       - "127.0.0.1:8001:8000"
 

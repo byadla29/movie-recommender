@@ -1,7 +1,7 @@
 # TASKS
 
 Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.7 — BFF client for user-service (forward the Clerk token; configure user-service `AUTH_ISSUER`; confirm real token claims end to end).**
+Next step: **2.8 — onboarding wizard (region → languages → genres → consent).**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -53,7 +53,7 @@ Backend (no Clerk account needed):
 
 Frontend (needs Clerk development keys in `frontend/.env.local`):
 - [x] 2.6 Clerk sign-in/up/out + protected routes
-- [ ] 2.7 BFF client for user-service (forwards token, timeouts) + `/home` placeholder
+- [x] 2.7 BFF client for user-service (forwards token, timeouts) + `/home` placeholder
 - [ ] 2.8 Onboarding wizard (region → languages → genres → consent)
 - [ ] 2.9 Settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks
 
@@ -90,6 +90,11 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.6 | first Docker run without keys | **found bug**: every page 500 incl. health → container unhealthy; fixed (health skips Clerk; keys wired) |
 | 2.6 | rebuilt frontend container | healthy; `/`, `/status`, `/sign-in`, `/sign-up`, `/home` 200; signed-out `/home` → `/sign-in?redirect_url=…/home` |
 | 2.6 | real secret in image files | 0 files (only Clerk's own `startsWith("sk_test_")` code matches the prefix) |
+| 2.7 | Clerk issuer derived from publishable key (base64 of `<host>$`) | confirmed: JWKS at `<issuer>/.well-known/jwks.json` serves 1 RSA key, `alg=RS256` |
+| 2.7 | user-service with `AUTH_ISSUER` + `azp` allow-list | no token → 401, forged token → 401 (was 503 before configuring) |
+| 2.7 | frontend lint, typecheck, `next build` (keys blanked) | clean |
+| 2.7 | `npm test` (Vitest) | 36 passed (23 new: client headers/timeout/status mapping/bounded retry/no token in results; summary states) |
+| 2.7 | **end to end** (owner signed in, opened `/home`) | page: "You haven't chosen…"; user-service logs: `GET /v1/me/preferences` → 404, no 401 → real Clerk token accepted (iss, azp, RS256, exp); 0 rows created; 0 tokens in logs |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -134,11 +139,9 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P2-g | Consent: no row = not granted; strict booleans; latest answer only (no history yet). Deletion: per-service idempotent `DELETE /v1/me`, BFF orchestrates, identity deleted last | Step 2.5 |
 | P2-h | Clerk `@clerk/nextjs` 7.x; `proxy.ts` runs `clerkMiddleware()` (no route rules there; `createRouteMatcher` is deprecated); pages gate with `auth.protect()` inside `<Suspense>`; `/api/health` bypasses Clerk | Step 2.6 |
 | P2-i | Publishable key = Docker build arg (public, baked into JS); secret key = runtime-only `env_file` from `frontend/.env.local` | Step 2.6 |
+| P2-j | BFF→user-service: pure client (token + URL as inputs) + `server-only` wrapper getting the Clerk token; typed results; 1500 ms timeout; 1 retry for reads on "unavailable" only | Step 2.7 |
 
 ## Blockers / needs from owner
-- Step 2.7: confirm real token claims end to end. Clerk docs (read 2026-11-20) confirm:
-  `iss` = Frontend API URL, JWKS at `<iss>/.well-known/jwks.json`, `azp` present, no `aud`
-  by default; RS256 only shown in their example (not stated as default).
 - Phase 3: TMDB API key (fixtures work without it).
 
 ## Known issues / risks

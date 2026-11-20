@@ -41,6 +41,9 @@ Reset local data (**deletes the database volume**): `docker compose down -v`.
 3. For Docker, also put the **publishable** key (public) in the root `.env` as
    `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=…`: the image build needs it. The secret key is passed
    to the running container from `frontend/.env.local` and is never built into the image.
+4. In the root `.env`, set `CLERK_ISSUER_URL=https://<your-app>.clerk.accounts.dev` (public;
+   the decode command is in `.env.example`). user-service verifies tokens against it.
+   Without it, `/v1/me/*` endpoints answer 503 "Authentication is not configured".
 
 Without keys the frontend still builds (CI does this), but pages return errors at runtime;
 only `/api/health` keeps working.
