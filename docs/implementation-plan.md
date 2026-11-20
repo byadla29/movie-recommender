@@ -10,7 +10,7 @@ movie-recommender/
 ├─ .github/workflows/ci.yml
 ├─ contracts/
 │  ├─ openapi/{user,catalog,recommendation}-service.v1.json   (generated, committed)
-│  ├─ vocab/genres.v1.json  languages.v1.json
+│  ├─ vocab/genres.v1.json  languages.v1.json  regions.v1.json  (checked by scripts/check_vocab.py)
 │  └─ events/            (Phase 7, only if a broker is adopted)
 ├─ data/
 │  ├─ fixtures/          fictional movies + synthetic users (committed, ours)

@@ -1,7 +1,7 @@
 # TASKS
 
-Current phase: **Phase 1 — Foundation (complete, awaiting review)**
-Next step: **Owner reviews Phase 1. Then propose the Phase 2 plan (Clerk sign-in, preferences API, onboarding).**
+Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
+Next step: **2.2 — user-service profile and preference tables (SQLAlchemy models + Alembic 0002).**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -27,7 +27,7 @@ Next step: **Owner reviews Phase 1. Then propose the Phase 2 plan (Clerk sign-in
 - [x] `docker-compose.yml` with healthchecks; frontend degrades when a service is down
 - [x] OpenAPI export script (`scripts/export-openapi.sh`, `--check` for CI) → `contracts/openapi/`
 - [x] CI workflow (lint, type-check, unit + integration tests, contract drift, frontend, docker build)
-- [ ] CI run on GitHub: not yet executed (no remote configured, nothing committed yet)
+- [x] First commit pushed to GitHub (`byadla29/movie-recommender`, `main`)
 
 ### Verified locally (2026-11-18)
 | Check | Result |
@@ -41,10 +41,28 @@ Next step: **Owner reviews Phase 1. Then propose the Phase 2 plan (Clerk sign-in
 | OpenAPI `--check` | no drift |
 
 ## Phase 2 — Identity & onboarding
-- [ ] IdP (Clerk) integration + protected routes
-- [ ] JWT validation per service; ownership tests
-- [ ] Preferences, consents, account deletion (user-service)
-- [ ] Onboarding wizard + settings pages
+Approved 2026-11-19 as 9 small steps, one commit each, on branch `phase-2`; merged to `main`
+via one pull request at the end. Each step stops for owner review before committing.
+
+Backend (no Clerk account needed):
+- [x] 2.1 Vocabularies `contracts/vocab/{languages,genres,regions}.v1.json` + `scripts/check_vocab.py` + CI step
+- [ ] 2.2 user-service tables: users, preferences, languages, genres, consents (Alembic 0002)
+- [ ] 2.3 user-service token validation (JWT via JWKS; 401 on missing/expired/tampered)
+- [ ] 2.4 Preferences API `GET/PUT /v1/me/preferences` + ownership tests + contract update
+- [ ] 2.5 Consents API + `DELETE /v1/me`
+
+Frontend (needs Clerk development keys in `frontend/.env.local`):
+- [ ] 2.6 Clerk sign-in/up/out + protected routes
+- [ ] 2.7 BFF client for user-service (forwards token, timeouts) + `/home` placeholder
+- [ ] 2.8 Onboarding wizard (region → languages → genres → consent)
+- [ ] 2.9 Settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks
+
+### Verified (Phase 2)
+| Step | Check | Result |
+|---|---|---|
+| 2.1 | `python scripts/check_vocab.py` | OK, 3 files valid (exit 0) |
+| 2.1 | checker on deliberately broken copies (duplicate, unsorted, bad slug, region under wrong country) | 4 errors reported (exit 1) |
+| 2.1 | ruff check/format + `mypy --strict` on `scripts/check_vocab.py` | clean |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -80,9 +98,9 @@ Next step: **Owner reviews Phase 1. Then propose the Phase 2 plan (Clerk sign-in
 | P1-a | Sync SQLAlchemy + psycopg 3 (threadpool endpoints) instead of async | Phase 1 |
 | P1-b | Migrations run on container start in local Compose only (`RUN_MIGRATIONS_ON_START`) | Phase 1 |
 | P1-c | Use `127.0.0.1`, not `localhost`, for published ports (Windows IPv6 hang) | Phase 1 |
+| P2-a | Vocabularies are contract files validated locally by each service (not fetched from another service at runtime) | Approved 2026-11-19 |
 
 ## Blockers / needs from owner
-- Review Phase 1; decide whether to commit and push to a GitHub remote so CI can run.
 - Phase 2: a Clerk account + development instance keys (publishable + secret) in `frontend/.env.local`.
 - Phase 3: TMDB API key (fixtures work without it).
 

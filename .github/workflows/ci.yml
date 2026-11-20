@@ -61,6 +61,8 @@ jobs:
           version: "0.13.9"
       - name: OpenAPI contracts match code
         run: bash scripts/export-openapi.sh --check
+      - name: Vocabularies are valid
+        run: python3 scripts/check_vocab.py
 
   frontend:
     runs-on: ubuntu-latest
