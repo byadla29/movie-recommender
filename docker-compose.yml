@@ -40,6 +40,10 @@ services:
       ENVIRONMENT: local
       DATABASE_URL: postgresql+psycopg://user_svc:${USER_SVC_DB_PASSWORD}@postgres:5432/user_db
       RUN_MIGRATIONS_ON_START: "true"
+      # Token verification (public values, no secrets). Empty issuer = /v1/me/* answer 503.
+      AUTH_ISSUER: ${CLERK_ISSUER_URL:-}
+      # Tokens must have been requested by our frontend (Clerk's "azp" claim).
+      AUTH_AUTHORIZED_PARTIES: '["http://127.0.0.1:3000", "http://localhost:3000"]'
     ports:
       - "127.0.0.1:8001:8000"
 
@@ -66,8 +70,17 @@ services:
       - "127.0.0.1:8003:8000"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Public value; needed at build time (see frontend/Dockerfile). From the root .env.
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
     restart: unless-stopped
+    # Clerk keys at RUN time (incl. CLERK_SECRET_KEY) come from the git-ignored
+    # frontend/.env.local, so the secret never ends up inside the image.
+    env_file:
+      - path: ./frontend/.env.local
+        required: false
     environment:
       USER_SERVICE_URL: http://user-service:8000
       CATALOG_SERVICE_URL: http://catalog-service:8000

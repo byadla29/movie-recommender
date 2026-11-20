@@ -63,6 +63,8 @@ jobs:
         run: bash scripts/export-openapi.sh --check
       - name: Vocabularies are valid
         run: python3 scripts/check_vocab.py
+      - name: Service copies of vocabularies are up to date
+        run: bash scripts/sync-vocab.sh --check
 
   frontend:
     runs-on: ubuntu-latest

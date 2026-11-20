@@ -94,13 +94,17 @@ migrating IdPs later needs a mapping table. (Decision D3 in `implementation-plan
 | user-service down when rec-service needs prefs | Can't personalize by explicit prefs | rec-service uses its stored learned affinities; if none, global popularity; response flags `degraded: true` |
 | catalog-service down | Can't hydrate cards, search, or details | BFF shows error state for those sections; watchlist IDs still listed with retry |
 | catalog feature sync fails | rec-service uses stale features | Last successful `synced_at` exposed on `/ready` details; stale > 24 h logs a warning |
-| IdP JWKS unreachable | Can't validate new tokens | Keys cached (e.g. 1 h); unknown `kid` → 401, never "allow" |
+| IdP JWKS unreachable | Can't validate new tokens | Key set cached ~5 min (re-fetched on unknown `kid`); fetch failure → 503 + `Retry-After` (not 401: the token may be fine); unknown `kid` → 401; never "allow" |
 | Duplicate event submissions (retries) | Double counting | `event_id` primary key → `ON CONFLICT DO NOTHING` |
 | Postgres down | Service not ready | `/ready` fails; Compose healthchecks; BFF shows error state |
 
 ## 7. Cross-cutting concerns
 
-- **Auth:** each service validates JWT signature (JWKS), `iss`, `aud`, `exp`, `nbf`.
+- **Auth:** each service validates the JWT itself: RS256 signature via JWKS, `iss`, `exp`,
+  `nbf`, `iat`, `sub`; `aud` and `azp` when configured (Clerk session tokens carry `azp`,
+  not `aud`). Failures → 401 with one generic message; reason logged, token never logged.
+  Unset `AUTH_ISSUER` → protected endpoints 503 (fail closed). Implemented in
+  user-service `auth.py` (step 2.3); other services copy the pattern when they need it (D7).
   Authorization = resource ownership by `sub`; "my" endpoints use `/v1/me/...` so there
   is no user ID in the URL to tamper with (prevents IDOR bugs).
 - **Errors:** RFC 9457 `application/problem+json` everywhere.
@@ -108,6 +112,31 @@ migrating IdPs later needs a mapping table. (Decision D3 in `implementation-plan
 - **Config:** 12-factor env vars; `.env.example` per service with placeholders.
 - **Logging:** JSON logs; never log tokens, emails, or full request bodies of events.
 - **Versioning:** URL prefix `/v1`; breaking changes → `/v2` side by side.
+- **Consent:** privacy by default. No stored answer = not granted; a row exists only after
+  an explicit choice (JSON `true`/`false` only). Reading consents creates no data.
+  Phase 5: recommendation-service must check `personalization_tracking` before storing
+  interaction events. Limitation: only the latest answer + time is kept, not a history.
+
+### Account deletion
+
+Each service deletes only its own data, through its own idempotent endpoint; the BFF
+orchestrates (no service reaches into another's database):
+
+```
+User clicks "Delete my account" (settings page, step 2.9)
+  BFF ──DELETE /v1/me──► user-service           204 (profile, preferences, consents: cascade)
+      ──DELETE /v1/me──► recommendation-service  204 (events, features: Phase 5)
+      ──delete user────► Clerk (backend API)     identity removed (step 2.9)
+      └─ sign the user out
+```
+
+- Idempotent: "already gone" is also 204, so the BFF can safely retry after a timeout.
+- Order: application data first, identity last; if a step fails the user is still signed
+  in and can retry, instead of being left with data they can no longer reach.
+- Logs of a deletion contain no user identifier.
+- Implemented: user-service `DELETE /v1/me` (step 2.5); settings page + `deleteAccount`
+  Server Action calling user-service then Clerk `users.deleteUser`, then browser sign-out
+  (step 2.9). recommendation-service joins the sequence in Phase 5.
 
 ## 8. Technology choices (and what we are deliberately *not* using yet)
 

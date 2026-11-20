@@ -1,0 +1,26 @@
+{
+  "vocabulary": "genres",
+  "version": 1,
+  "standard": "project slugs",
+  "description": "Our own controlled genre vocabulary. Provider genres (TMDB ids, MovieLens strings) are mapped onto these slugs during catalog import (Phase 3).",
+  "items": [
+    { "code": "action", "name": "Action" },
+    { "code": "adventure", "name": "Adventure" },
+    { "code": "animation", "name": "Animation" },
+    { "code": "comedy", "name": "Comedy" },
+    { "code": "crime", "name": "Crime" },
+    { "code": "documentary", "name": "Documentary" },
+    { "code": "drama", "name": "Drama" },
+    { "code": "family", "name": "Family" },
+    { "code": "fantasy", "name": "Fantasy" },
+    { "code": "history", "name": "History" },
+    { "code": "horror", "name": "Horror" },
+    { "code": "music", "name": "Music" },
+    { "code": "mystery", "name": "Mystery" },
+    { "code": "romance", "name": "Romance" },
+    { "code": "science-fiction", "name": "Science Fiction" },
+    { "code": "thriller", "name": "Thriller" },
+    { "code": "war", "name": "War" },
+    { "code": "western", "name": "Western" }
+  ]
+}

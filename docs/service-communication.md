@@ -22,7 +22,7 @@ Status: **Phase 0 draft — awaiting approval** · Last updated: 2026-11-18
 
 | # | Caller → Callee | Endpoint | Auth | Timeout | Retry | On failure |
 |---|---|---|---|---|---|---|
-| 1 | BFF → user-service | `GET /v1/me/preferences` | user JWT | 800 ms | 1 | redirect to onboarding only on 404; otherwise error banner |
+| 1 | BFF → user-service | `GET /v1/me/preferences` | user JWT | 1500 ms¹ | 1 | redirect to onboarding only on 404; otherwise error banner |
 | 2 | BFF → recommendation | `GET /v1/me/home` | user JWT | 1500 ms | 0 | fallback popular rows from catalog (#4) |
 | 3 | BFF → catalog | `POST /v1/movies/batch-get` | none (public data) | 800 ms | 1 | card placeholders |
 | 4 | BFF → catalog | `GET /v1/movies?...` | none | 800 ms | 1 | error state |
@@ -32,6 +32,11 @@ Status: **Phase 0 draft — awaiting approval** · Last updated: 2026-11-18
 | 8 | recommendation → catalog | `GET /v1/internal/movie-features?updated_since=&cursor=` | service credential | 5 s | 2 | keep stale features, log warning |
 | 9 | user-service → catalog | `GET /v1/movies/{id}` (validate on watchlist add) | none | 500 ms | 1 | 503 to caller (don't add unverifiable IDs) |
 | 10 | BFF → each service | `DELETE /v1/me` / `DELETE /v1/me/events` | user JWT | 2 s | 2 (idempotent) | show "deletion pending", retry on next sign-in |
+
+¹ Implemented in step 2.7 (`frontend/src/lib/api/user-service.ts`). Raised from 800 ms because
+user-service's first token check after a start downloads the identity provider's public keys
+over the internet; later checks use its cached keys. Retries only on "unavailable" (503,
+timeout, network error), never on 401/404/422, and reuse the same `X-Request-ID`.
 
 ## 3. Sequence: homepage load
 

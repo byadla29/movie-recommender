@@ -21,13 +21,20 @@ The Next.js app is both the **UI** and the **BFF** (backend-for-frontend):
 | `/search` | 🔒 | Search box, filters (genre, language, year), paginated grid |
 | `/movies/[id]` | 🔒 | Details, watchlist/like buttons, simulate-watch slider, *More like this* |
 | `/watchlist` | 🔒 | Paginated grid |
-| `/settings/preferences` | 🔒 | Edit onboarding answers |
-| `/settings/privacy` | 🔒 | Consent toggle, delete account, data explanation |
+| `/settings` | 🔒 | Preferences summary (+ Edit → `/onboarding`), consent toggle, data explanation, delete account |
+| `/goodbye` | public | Shown after account deletion |
 | `/about/data` | public | Data sources, licenses, proxy vs real signals explained |
 
-**Middleware** (`middleware.ts`): unauthenticated → `/sign-in`; authenticated but not
-onboarded → `/onboarding` (onboarded flag cached in session claims or a short-lived cookie,
-re-checked server-side).
+**As built in Phase 2** (differs from the draft above where noted):
+- `/onboarding` is one page with four fieldsets, not a multi-step wizard: a plain `<form>`
+  + Server Action works without JavaScript and keeps every choice on errors. It doubles as
+  the "edit preferences" page.
+- `/settings` is one page instead of `/settings/preferences` + `/settings/privacy`.
+- Next.js 16 `proxy.ts` (formerly `middleware.ts`) only runs `clerkMiddleware()`. Pages gate
+  themselves with `auth.protect()`. "Not onboarded → `/onboarding`" is decided by `/home`
+  when user-service answers 404, not by the proxy (no extra flag to keep in sync).
+- Mutations use Server Actions (`app/onboarding/actions.ts`, `app/settings/actions.ts`)
+  instead of `api/preferences` / `api/account` route handlers.
 
 ## 3. Component inventory
 

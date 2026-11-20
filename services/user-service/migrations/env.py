@@ -3,8 +3,9 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import create_engine, pool
+from sqlalchemy import Connection, create_engine, pool
 
+import user_service.models  # noqa: F401  (registers the tables on Base.metadata)
 from user_service.db import Base
 from user_service.settings import get_settings
 
@@ -31,12 +32,22 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _run_with(connection: Connection) -> None:
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_online() -> None:
+    # Tests may hand us a connection that is already inside a transaction; they roll it back
+    # afterwards, so a downgrade/upgrade round trip leaves the real database untouched.
+    external: Connection | None = config.attributes.get("connection")
+    if external is not None:
+        _run_with(external)
+        return
     engine = create_engine(_database_url(), poolclass=pool.NullPool)
     with engine.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
+        _run_with(connection)
 
 
 if context.is_offline_mode():
