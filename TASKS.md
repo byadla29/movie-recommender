@@ -1,7 +1,7 @@
 # TASKS
 
 Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.2 — user-service profile and preference tables (SQLAlchemy models + Alembic 0002).**
+Next step: **2.3 — user-service token validation (JWT via JWKS).**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -46,7 +46,7 @@ via one pull request at the end. Each step stops for owner review before committ
 
 Backend (no Clerk account needed):
 - [x] 2.1 Vocabularies `contracts/vocab/{languages,genres,regions}.v1.json` + `scripts/check_vocab.py` + CI step
-- [ ] 2.2 user-service tables: users, preferences, languages, genres, consents (Alembic 0002)
+- [x] 2.2 user-service tables: users, preferences, languages, genres, consents (Alembic 0002)
 - [ ] 2.3 user-service token validation (JWT via JWKS; 401 on missing/expired/tampered)
 - [ ] 2.4 Preferences API `GET/PUT /v1/me/preferences` + ownership tests + contract update
 - [ ] 2.5 Consents API + `DELETE /v1/me`
@@ -63,6 +63,11 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.1 | `python scripts/check_vocab.py` | OK, 3 files valid (exit 0) |
 | 2.1 | checker on deliberately broken copies (duplicate, unsorted, bad slug, region under wrong country) | 4 errors reported (exit 1) |
 | 2.1 | ruff check/format + `mypy --strict` on `scripts/check_vocab.py` | clean |
+| 2.2 | user-service ruff check/format, mypy (src, strict) | clean |
+| 2.2 | user-service unit tests | 18 passed (4 new model tests) |
+| 2.2 | user-service integration tests vs Compose Postgres | 18 passed: models = migrations, downgrade/upgrade round trip, cascade delete, 7 invalid rows rejected, unique rank, unique `user_sub` (all in rolled-back transactions) |
+| 2.2 | old container vs migrated DB → rebuilt container | `/ready` 503 "at 0002, expected 0001" → 200 ready |
+| 2.2 | OpenAPI `--check` | no drift (no API change in this step) |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -99,6 +104,8 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P1-b | Migrations run on container start in local Compose only (`RUN_MIGRATIONS_ON_START`) | Phase 1 |
 | P1-c | Use `127.0.0.1`, not `localhost`, for published ports (Windows IPv6 hang) | Phase 1 |
 | P2-a | Vocabularies are contract files validated locally by each service (not fetched from another service at runtime) | Approved 2026-11-19 |
+| P2-b | DB CHECKs validate code format; vocabulary membership is checked in application code. No `display_name`/`deleted_at` columns (data minimisation; hard delete + cascade) | Step 2.2 |
+| P2-c | Integration tests run inside rolled-back transactions so they never change local data | Step 2.2 |
 
 ## Blockers / needs from owner
 - Phase 2: a Clerk account + development instance keys (publishable + secret) in `frontend/.env.local`.
@@ -109,3 +116,5 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 - Starlette warns that `httpx` in TestClient is deprecated in favour of `httpx2`; harmless for now.
 - 14 "high" npm audit findings are in dev-only dependencies; production deps report 0.
 - GitHub Action versions in CI are pinned to major tags, not commit SHAs (tighten in Phase 6).
+- mypy checks only `src/`; tests and migrations are not type-checked (would need a `py.typed`
+  marker and config change). Candidate small improvement.

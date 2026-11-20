@@ -1,6 +1,9 @@
 # Database Design
 
-Status: **Phase 0 draft — awaiting approval** · Last updated: 2026-11-18
+Status: **Approved 2026-11-18; user-service tables implemented (step 2.2)** · Last updated: 2026-11-20
+
+Constraint names follow a fixed convention (`pk_<table>`, `fk_<table>_<col>_<referred>`,
+`uq_<table>_<cols>`, `ck_<table>_<name>`) so migrations can reference them reliably.
 
 ## 1. Isolation model
 
@@ -25,26 +28,31 @@ explicit approval and a two-step expand → contract rollout.
 
 ## 2. user-service (`user_db`)
 
+Implemented in migration `0002` (Phase 2, step 2.2) except `watchlist_items` (Phase 3).
+Changes from the Phase 0 draft: no `display_name` (data minimisation — nothing needs it) and
+no `deleted_at` (deletion is a hard delete with cascade; revisit in step 2.5 only if the
+cross-service deletion workflow needs a marker); `country_code` is `varchar(2)` + a format
+CHECK; `onboarded_at` is NOT NULL because a preferences row exists only once onboarded.
+CHECKs validate code *format*; vocabulary membership is validated by the application.
+
 ```sql
 users (
-  id            uuid PK,
-  user_sub      text UNIQUE NOT NULL,          -- IdP subject; no email/name stored
-  display_name  text NULL,                     -- optional, user-entered
-  created_at, updated_at timestamptz NOT NULL,
-  deleted_at    timestamptz NULL               -- soft-delete marker during deletion workflow
+  id            uuid PK DEFAULT gen_random_uuid(),
+  user_sub      text UNIQUE NOT NULL CHECK (length 1..255),  -- IdP subject; no email/name stored
+  created_at, updated_at timestamptz NOT NULL DEFAULT now()
 )
 
 user_preferences (
   user_id        uuid PK FK→users(id) ON DELETE CASCADE,
-  country_code   char(2) NOT NULL,             -- ISO 3166-1, user-chosen
-  region_code    text NULL,                    -- ISO 3166-2 e.g. 'IN-AP', optional
-  onboarded_at   timestamptz NULL,
+  country_code   varchar(2) NOT NULL CHECK (~ '^[A-Z]{2}$'),   -- ISO 3166-1, user-chosen
+  region_code    varchar(6) NULL,              -- ISO 3166-2 e.g. 'IN-AP'; must start with country_code || '-'
+  onboarded_at   timestamptz NOT NULL,
   updated_at     timestamptz NOT NULL
 )
 
 user_languages (
   user_id        uuid FK ON DELETE CASCADE,
-  language_code  varchar(3) NOT NULL,          -- ISO 639-1
+  language_code  varchar(3) NOT NULL,          -- ISO 639-1, CHECK (~ '^[a-z]{2,3}$')
   rank           smallint NOT NULL CHECK (rank BETWEEN 1 AND 10),
   PRIMARY KEY (user_id, language_code),
   UNIQUE (user_id, rank)
