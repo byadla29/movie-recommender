@@ -1,7 +1,7 @@
 # TASKS
 
 Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.4 — preferences API `GET/PUT /v1/me/preferences` (first protected endpoint).**
+Next step: **2.5 — consents API + `DELETE /v1/me`.**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -48,7 +48,7 @@ Backend (no Clerk account needed):
 - [x] 2.1 Vocabularies `contracts/vocab/{languages,genres,regions}.v1.json` + `scripts/check_vocab.py` + CI step
 - [x] 2.2 user-service tables: users, preferences, languages, genres, consents (Alembic 0002)
 - [x] 2.3 user-service token validation (JWT via JWKS; 401 on missing/expired/tampered)
-- [ ] 2.4 Preferences API `GET/PUT /v1/me/preferences` + ownership tests + contract update
+- [x] 2.4 Preferences API `GET/PUT /v1/me/preferences` + ownership tests + contract update
 - [ ] 2.5 Consents API + `DELETE /v1/me`
 
 Frontend (needs Clerk development keys in `frontend/.env.local`):
@@ -73,6 +73,12 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.3 | each bad token rejected for the intended reason (printed) | DecodeError, InvalidSignature ×2, InvalidAlgorithm ×2, Expired, Immature, InvalidIssuer, MissingClaim ×2, empty sub, oversized |
 | 2.3 | OpenAPI `--check` | no drift (no route uses auth yet; first in 2.4) |
 | 2.3 | `docker compose up -d --build --wait` | 5/5 healthy; user-service `/ready` ok; image has pyjwt 2.15.1, cryptography 50.0.2 |
+| 2.4 | user-service ruff check/format, mypy (src, strict) | clean |
+| 2.4 | user-service unit tests | 78 passed (23 new: domain rules, 401s, 422 shape + vocabulary errors) |
+| 2.4 | user-service integration tests vs Compose Postgres | 26 passed (8 new: 404 before onboarding, PUT→GET, idempotent, replace incl. rank swap, rejected PUT changes nothing, crash mid-save rolls back, **Alice/Bob isolation**, user row from token sub) |
+| 2.4 | row counts in local `user_db` after tests | 0 users / 0 preferences / 0 languages (rollback fixture works) |
+| 2.4 | `scripts/sync-vocab.sh --check`, OpenAPI `--check` | no drift; contract now lists `/v1/me/preferences` with HTTPBearer, 401/404/422/503 |
+| 2.4 | rebuilt container | `/ready` ok; vocab in image (22 languages); `/v1/me/preferences` → 503 "Authentication is not configured" (fail closed until 2.6) |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -112,6 +118,8 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P2-b | DB CHECKs validate code format; vocabulary membership is checked in application code. No `display_name`/`deleted_at` columns (data minimisation; hard delete + cascade) | Step 2.2 |
 | P2-c | Integration tests run inside rolled-back transactions so they never change local data | Step 2.2 |
 | P2-d | PyJWT (+cryptography) verifies tokens locally via JWKS; RS256 only; 401 generic message; JWKS unreachable or auth unconfigured → 503 (fail closed) | Step 2.3 |
+| P2-e | Services get vocab as build-time copies (`scripts/sync-vocab.sh`, CI `--check`), because each Docker build only sees its own folder | Step 2.4 |
+| P2-f | Layering `api` (HTTP/Pydantic) → `domain` (pure rules) → `repositories` (SQL); write routes commit explicitly before responding | Step 2.4 |
 
 ## Blockers / needs from owner
 - Phase 2: a Clerk account + development instance keys (publishable + secret) in `frontend/.env.local`.

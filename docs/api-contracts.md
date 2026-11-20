@@ -55,6 +55,17 @@ PUT /v1/me/preferences
 
 Validation: `region_code` must start with `country_code + "-"`; unknown language/genre → 422.
 
+**Implemented (step 2.4):** `GET`/`PUT /v1/me/preferences`.
+- Order of checks: token (401/503) → shape (Pydantic; 422) → vocabulary rules (domain; 422)
+  → database write in one transaction. A rejected PUT changes nothing.
+- 422 body: `errors: [{"loc": ["body","languages",1], "msg": "Not a supported value",
+  "type": "unknown_code"}]`; types: Pydantic's own, `unknown_code`, `duplicate`,
+  `region_not_in_country`. Messages never echo submitted values.
+- Unknown body fields are rejected (`extra="forbid"`), so a client cannot name another user.
+- PUT replaces everything (omitted `region_code`/`genres` are cleared); `genres` returned
+  sorted; `onboarded_at` keeps its first value.
+- `AUTH_ISSUER` unset → every `/v1/me/*` call returns 503 "Authentication is not configured".
+
 ```http
 GET /v1/me/watchlist?limit=2
 → 200 { "items": [ {"movie_id": "0b6c…", "added_at": "…"}, {"movie_id": "91aa…", "added_at": "…"} ],

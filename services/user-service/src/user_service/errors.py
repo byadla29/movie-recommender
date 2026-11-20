@@ -13,12 +13,36 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from user_service.domain.errors import DomainValidationError
 from user_service.request_context import REQUEST_ID_HEADER, request_id_var
 
 PROBLEM_JSON = "application/problem+json"
+VALIDATION_TYPE = "https://errors.movie-reco.local/validation"
 logger = logging.getLogger(__name__)
+
+
+class Problem(BaseModel):
+    """RFC 9457 problem details, as returned by every error response (for OpenAPI docs)."""
+
+    type: str
+    title: str
+    status: int
+    detail: str | None = None
+    instance: str
+    request_id: str | None
+    # Only on 422: [{"loc": ["body", "languages", 1], "msg": "...", "type": "unknown_code"}]
+    errors: list[dict[str, Any]] | None = None
+
+
+def problem_doc(description: str) -> dict[str, Any]:
+    """OpenAPI entry for one error status, e.g. responses={401: problem_doc("...")}."""
+    return {
+        "description": description,
+        "content": {PROBLEM_JSON: {"schema": Problem.model_json_schema()}},
+    }
 
 
 def problem_response(
@@ -61,7 +85,20 @@ async def _validation_exception_handler(request: Request, exc: Exception) -> JSO
         request,
         422,
         detail="Request validation failed",
-        type_="https://errors.movie-reco.local/validation",
+        type_=VALIDATION_TYPE,
+        extra={"errors": errors},
+    )
+
+
+async def _domain_validation_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Business-rule failures look exactly like schema failures to the client."""
+    assert isinstance(exc, DomainValidationError)
+    errors = [{"loc": list(e.loc), "msg": e.msg, "type": e.type} for e in exc.errors]
+    return problem_response(
+        request,
+        422,
+        detail="Request validation failed",
+        type_=VALIDATION_TYPE,
         extra={"errors": errors},
     )
 
@@ -77,4 +114,5 @@ async def _unhandled_exception_handler(request: Request, exc: Exception) -> JSON
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
+    app.add_exception_handler(DomainValidationError, _domain_validation_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)

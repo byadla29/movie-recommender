@@ -9,7 +9,7 @@ Run:  RUN_INTEGRATION=1 uv run pytest tests/integration
 
 import os
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 
 import pytest
 from alembic import command
@@ -20,7 +20,7 @@ from sqlalchemy import Connection, delete, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from user_service.db import Base, get_engine
+from user_service.db import Base
 from user_service.models import User, UserConsent, UserGenre, UserLanguage, UserPreferences
 from user_service.settings import get_settings
 
@@ -35,26 +35,7 @@ def _alembic_config() -> Config:
     return Config(str(get_settings().alembic_ini_path))
 
 
-@pytest.fixture(autouse=True)
-def _migrated_to_head() -> None:
-    command.upgrade(_alembic_config(), "head")
-
-
-@pytest.fixture
-def connection() -> Iterator[Connection]:
-    with get_engine().connect() as conn:
-        transaction = conn.begin()
-        try:
-            yield conn
-        finally:
-            transaction.rollback()
-
-
-@pytest.fixture
-def session(connection: Connection) -> Iterator[Session]:
-    # Savepoints let a test hit an IntegrityError and keep using the outer transaction.
-    with Session(bind=connection, join_transaction_mode="create_savepoint") as s:
-        yield s
+# `connection` and `session` fixtures (rolled-back transaction) live in ./conftest.py.
 
 
 def _user_with_everything(session: Session) -> User:

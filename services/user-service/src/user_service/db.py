@@ -5,10 +5,11 @@ thread pool, so sync DB calls don't block the event loop. That's simpler to lear
 async SQLAlchemy and fast enough here; we revisit only if measurements say so.
 """
 
+from collections.abc import Iterator
 from functools import lru_cache
 
 from sqlalchemy import Engine, MetaData, create_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Session
 
 from user_service.settings import get_settings
 
@@ -27,6 +28,18 @@ class Base(DeclarativeBase):
     """All ORM models of this service inherit from this. Alembic reads Base.metadata."""
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+
+def get_session() -> Iterator[Session]:
+    """FastAPI dependency: one database session per request, always closed afterwards.
+
+    Routes that write open the transaction themselves (`with session.begin():`), so the
+    COMMIT happens *before* the response is sent; if it fails, the client gets an error,
+    never a 200 for data that wasn't saved. Tests override this to use a rolled-back
+    transaction.
+    """
+    with Session(get_engine(), expire_on_commit=False) as session:
+        yield session
 
 
 @lru_cache
