@@ -134,7 +134,9 @@ User clicks "Delete my account" (settings page, step 2.9)
 - Order: application data first, identity last; if a step fails the user is still signed
   in and can retry, instead of being left with data they can no longer reach.
 - Logs of a deletion contain no user identifier.
-- Implemented so far: user-service `DELETE /v1/me` (step 2.5).
+- Implemented: user-service `DELETE /v1/me` (step 2.5); settings page + `deleteAccount`
+  Server Action calling user-service then Clerk `users.deleteUser`, then browser sign-out
+  (step 2.9). recommendation-service joins the sequence in Phase 5.
 
 ## 8. Technology choices (and what we are deliberately *not* using yet)
 

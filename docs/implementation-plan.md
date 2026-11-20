@@ -1,6 +1,6 @@
 # Implementation Plan
 
-Status: **Approved 2026-11-18; Phase 1 complete** · Last updated: 2026-11-18
+Status: **Approved 2026-11-18; Phases 1–2 complete** · Last updated: 2026-11-20
 
 ## 1. Proposed repository structure (built up phase by phase — not created up front)
 

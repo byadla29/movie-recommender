@@ -1,11 +1,13 @@
 import "server-only";
 
 import { auth } from "@clerk/nextjs/server";
+import { connection } from "next/server";
 
 import { getServiceUrls } from "@/lib/config";
 
 import {
   type Consent,
+  deleteMyAccountData,
   getMyConsents,
   getMyPreferences,
   type Preferences,
@@ -44,6 +46,10 @@ async function asCurrentUser<T>(
 ): Promise<UserServiceResult<T>> {
   const token = await currentUserToken();
   if (!token) return { ok: false, reason: "unauthorized", status: null };
+  // Next.js may pre-render pages in the background (e.g. when a link to them is shown).
+  // connection() stops that pre-render here, so the request id and the call to
+  // user-service only ever happen for a real visit, never in a background pre-render.
+  await connection();
   const result = await call(getServiceUrls()["user-service"], token);
   if (!result.ok && !expected.includes(result.reason)) logFailure(operation, result);
   return result;
@@ -63,4 +69,8 @@ export function getMyConsentsAsCurrentUser(): Promise<UserServiceResult<{ consen
 
 export function putMyConsentAsCurrentUser(purpose: string, granted: boolean): Promise<UserServiceResult<Consent>> {
   return asCurrentUser("put_consent", (url, token) => putMyConsent(url, token, purpose, granted));
+}
+
+export function deleteMyAccountDataAsCurrentUser(): Promise<UserServiceResult<void>> {
+  return asCurrentUser("delete_account_data", deleteMyAccountData);
 }

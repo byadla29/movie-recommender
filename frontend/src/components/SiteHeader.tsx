@@ -39,6 +39,9 @@ export function SiteHeader() {
               <Link href="/home" className="rounded-md px-3 py-1.5 font-medium hover:bg-zinc-100 focus-visible:outline-2 dark:hover:bg-zinc-800">
                 Home
               </Link>
+              <Link href="/settings" className="rounded-md px-3 py-1.5 font-medium hover:bg-zinc-100 focus-visible:outline-2 dark:hover:bg-zinc-800">
+                Settings
+              </Link>
               <UserButton />
             </Show>
           </Suspense>

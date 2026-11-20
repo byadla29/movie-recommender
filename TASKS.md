@@ -1,7 +1,7 @@
 # TASKS
 
-Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.9 — settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks.**
+Current phase: **Phase 2 — Identity & onboarding (complete on branch `phase-2`; PR to `main` pending)**
+Next step: **Owner opens the `phase-2` → `main` pull request and checks CI. Then propose the Phase 3 plan (catalog & UX).**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -55,7 +55,16 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 - [x] 2.6 Clerk sign-in/up/out + protected routes
 - [x] 2.7 BFF client for user-service (forwards token, timeouts) + `/home` placeholder
 - [x] 2.8 Onboarding form (region → languages → genres → consent; one page, four sections)
-- [ ] 2.9 Settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks
+- [x] 2.9 Settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks
+
+### Phase 2 acceptance (implementation-plan.md)
+| Criterion | Evidence |
+|---|---|
+| Unauthenticated API calls → 401 | user-service unit tests (every `/v1/me` endpoint); live: no token → 401 |
+| Tampered/expired token → 401 | `test_auth.py`: 12 bad-token kinds; live: forged token → 401 |
+| User A cannot read user B's data | integration tests: Alice/Bob isolation (preferences, consents, deletion) |
+| Onboarding persists and redirects to `/home` | owner end-to-end test (step 2.8) + DB check |
+| Account deletion removes user-service data (+ identity) | owner end-to-end test (step 2.9): 0 rows in all 5 tables, `DELETE /v1/me` 204, Clerk user deleted |
 
 ### Verified (Phase 2)
 | Step | Check | Result |
@@ -99,6 +108,12 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.8 | `npm test` (Vitest) | 63 passed (27 new: vocab labels, form parsing/checks/server-error mapping/prefill, Server Action decisions incl. consent failure, form a11y labels, tracking off by default, errors keep choices) |
 | 2.8 | **end to end, flow A** (owner): `/home` → redirected to `/onboarding` → saved → `/home` shows names | user-service: GET prefs 404 ×2, GET consents 200, PUT prefs 200, PUT consent 200, GET prefs 200; DB: 1 user, codes only (country, 2 ranked languages, 5 genres, consent); 0 tokens in logs |
 | 2.8 | flow B (edit + error + re-save) | owner reported OK; logs show no second save, so the edit/re-save path is covered by automated tests only |
+| 2.9 | frontend lint, typecheck, `next build` (keys blanked) | clean; `/settings`, `/goodbye` built |
+| 2.9 | `npm test` (Vitest) | 83 passed (20 new: tracking action strict values, delete order user-service→Clerk, no deletion without exact "DELETE", failure messages, sign-out after deletion, Next.js internal errors rethrown) |
+| 2.9 | all 3 Python services: ruff, format, mypy, unit, integration | clean; user 92+33, catalog 14+5, reco 14+5 passed; OpenAPI no drift; vocab valid + copies in sync |
+| 2.9 | **account deletion end to end** (owner) | `DELETE /v1/me` 204 (`had_data: true`); users/preferences/languages/genres/consents all 0; Clerk user deleted; 0 tokens in logs |
+| 2.9 | **found bug** in that run | 13 false "unavailable" warnings + `crypto.randomUUID()` prerender errors: background prerender (link prefetch) aborts were caught as outages. Fixed with `connection()` before service calls and `unstable_rethrow` in catch blocks; after fix, 7 real page loads → 0 warnings, 0 errors |
+| 2.9 | privacy toggle (Turn on/off) | **not exercised manually** (no consent PUT in logs); covered by automated tests only |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -144,6 +159,7 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P2-h | Clerk `@clerk/nextjs` 7.x; `proxy.ts` runs `clerkMiddleware()` (no route rules there; `createRouteMatcher` is deprecated); pages gate with `auth.protect()` inside `<Suspense>`; `/api/health` bypasses Clerk | Step 2.6 |
 | P2-i | Publishable key = Docker build arg (public, baked into JS); secret key = runtime-only `env_file` from `frontend/.env.local` | Step 2.6 |
 | P2-j | BFF→user-service: pure client (token + URL as inputs) + `server-only` wrapper getting the Clerk token; typed results; 1500 ms timeout; 1 retry for reads on "unavailable" only | Step 2.7 |
+| P2-l | One `/settings` page (preferences summary + Edit, consent toggle, delete account); deletion = user-service then Clerk `deleteUser`, then browser `signOut` → `/goodbye`; typed "DELETE" checked on server; service calls wait for `connection()` and never swallow Next.js internal errors | Step 2.9 |
 | P2-k | Onboarding = one page, four fieldsets, real `<form>` + Server Action (works without JS); 5 ordered language slots; quick checks in the BFF, user-service authoritative; preferences then consent as two idempotent PUTs; idempotent PUTs retried once; `/home` redirects to `/onboarding` on 404; frontend gets vocab copies via `sync-vocab.sh` | Step 2.8 |
 
 ## Blockers / needs from owner

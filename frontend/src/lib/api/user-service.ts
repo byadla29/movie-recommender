@@ -11,6 +11,8 @@
  * server-only wrapper that gets them from Clerk lives in `user-service.server.ts`.
  */
 
+import { unstable_rethrow } from "next/navigation";
+
 export interface RankedLanguage {
   code: string;
   rank: number;
@@ -96,7 +98,10 @@ async function attempt<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store", // personal data: never cache across users
     });
-  } catch {
+  } catch (error) {
+    // Next.js stops unfinished work with special errors (e.g. during a background
+    // pre-render). Those aren't outages: hand them back to Next.js instead of hiding them.
+    unstable_rethrow(error);
     // Timeout, connection refused, DNS failure: the service didn't answer.
     return { ok: false, reason: "unavailable", status: null };
   }
@@ -179,6 +184,23 @@ export function putMyConsent(
     method: "PUT",
     body: { granted },
     retries: 1, // idempotent
+    ...options,
+  });
+}
+
+/**
+ * Delete everything user-service stores about me (docs/service-communication.md call #10).
+ * "Already gone" is also success (204), so retrying is always safe: 2 retries, 2 s each.
+ */
+export function deleteMyAccountData(
+  baseUrl: string,
+  token: string,
+  options: ReadOptions = {},
+): Promise<UserServiceResult<void>> {
+  return callUserService<void>(baseUrl, "/v1/me", token, {
+    method: "DELETE",
+    retries: 2,
+    timeoutMs: 2000,
     ...options,
   });
 }

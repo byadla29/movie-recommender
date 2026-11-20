@@ -6,15 +6,16 @@ explainable recommendations, built as a small set of microservices in one monore
 - Design docs: [`docs/`](docs/) — start with [`architecture.md`](docs/architecture.md)
 - Progress: [`TASKS.md`](TASKS.md) · Project rules: [`CLAUDE.md`](CLAUDE.md)
 
-## Status: Phase 2 — Identity & onboarding (in progress)
+## Status: Phase 2 — Identity & onboarding (complete)
 
 Three FastAPI services with health/readiness, Postgres with one isolated database per
-service, and a Next.js app with sign-in (Clerk). user-service has protected preferences,
-consent and account-deletion APIs. Onboarding UI, catalog and recommendations come next.
+service, and a Next.js app with sign-in (Clerk), onboarding (country/region, ordered
+languages, genres, tracking consent), a settings page and account deletion. user-service
+verifies Clerk tokens itself. Catalog and recommendations come next (Phases 3–4).
 
 | Component | Local URL | Notes |
 |---|---|---|
-| frontend (Next.js UI + BFF) | http://127.0.0.1:3000 | `/status` shows backend readiness |
+| frontend (Next.js UI + BFF) | http://127.0.0.1:3000 | `/home`, `/onboarding`, `/settings`; `/status` shows backend readiness |
 | user-service | http://127.0.0.1:8001/docs | Swagger UI |
 | catalog-service | http://127.0.0.1:8002/docs | Swagger UI |
 | recommendation-service | http://127.0.0.1:8003/docs | Swagger UI |

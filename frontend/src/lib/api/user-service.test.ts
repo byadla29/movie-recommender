@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 
-import { callUserService, getMyPreferences, type Preferences } from "./user-service";
+import { callUserService, deleteMyAccountData, getMyPreferences, type Preferences } from "./user-service";
 
 const BASE = "http://user-service.test";
 const TOKEN = "header.payload.signature-of-a-fake-token";
@@ -106,6 +107,20 @@ describe("callUserService", () => {
     expect(result).toEqual({ ok: false, reason: "unavailable", status: null });
   });
 
+  it("hands Next.js's own control-flow errors back to Next.js instead of calling them outages", async () => {
+    let nextInternal: unknown;
+    try {
+      redirect("/somewhere"); // throws Next.js's internal NEXT_REDIRECT error
+    } catch (error) {
+      nextInternal = error;
+    }
+    const fetchImpl = vi.fn(async () => {
+      throw nextInternal;
+    });
+
+    await expect(getMyPreferences(BASE, TOKEN, { fetchImpl })).rejects.toBe(nextInternal);
+  });
+
   it("treats a 200 that isn't JSON as an error, not as data", async () => {
     const fetchImpl = vi.fn(async () => new Response("<html>oops</html>", { status: 200 }));
 
@@ -151,6 +166,22 @@ describe("callUserService", () => {
     await callUserService(BASE, "/v1/me/preferences", TOKEN, { method: "PUT", body: {}, fetchImpl });
 
     expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("deletes my account data with DELETE /v1/me and retries up to twice (idempotent)", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    const result = await deleteMyAccountData(BASE, TOKEN, { fetchImpl });
+
+    expect(result.ok).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${BASE}/v1/me`);
+    expect(init.method).toBe("DELETE");
   });
 
   it("never puts the token into a result", async () => {
