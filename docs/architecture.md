@@ -94,13 +94,17 @@ migrating IdPs later needs a mapping table. (Decision D3 in `implementation-plan
 | user-service down when rec-service needs prefs | Can't personalize by explicit prefs | rec-service uses its stored learned affinities; if none, global popularity; response flags `degraded: true` |
 | catalog-service down | Can't hydrate cards, search, or details | BFF shows error state for those sections; watchlist IDs still listed with retry |
 | catalog feature sync fails | rec-service uses stale features | Last successful `synced_at` exposed on `/ready` details; stale > 24 h logs a warning |
-| IdP JWKS unreachable | Can't validate new tokens | Keys cached (e.g. 1 h); unknown `kid` → 401, never "allow" |
+| IdP JWKS unreachable | Can't validate new tokens | Key set cached ~5 min (re-fetched on unknown `kid`); fetch failure → 503 + `Retry-After` (not 401: the token may be fine); unknown `kid` → 401; never "allow" |
 | Duplicate event submissions (retries) | Double counting | `event_id` primary key → `ON CONFLICT DO NOTHING` |
 | Postgres down | Service not ready | `/ready` fails; Compose healthchecks; BFF shows error state |
 
 ## 7. Cross-cutting concerns
 
-- **Auth:** each service validates JWT signature (JWKS), `iss`, `aud`, `exp`, `nbf`.
+- **Auth:** each service validates the JWT itself: RS256 signature via JWKS, `iss`, `exp`,
+  `nbf`, `iat`, `sub`; `aud` and `azp` when configured (Clerk session tokens carry `azp`,
+  not `aud`). Failures → 401 with one generic message; reason logged, token never logged.
+  Unset `AUTH_ISSUER` → protected endpoints 503 (fail closed). Implemented in
+  user-service `auth.py` (step 2.3); other services copy the pattern when they need it (D7).
   Authorization = resource ownership by `sub`; "my" endpoints use `/v1/me/...` so there
   is no user ID in the URL to tamper with (prevents IDOR bugs).
 - **Errors:** RFC 9457 `application/problem+json` everywhere.

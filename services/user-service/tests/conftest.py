@@ -12,18 +12,21 @@ os.environ.setdefault("ENVIRONMENT", "test")
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from user_service.auth import _verifier_from_settings
 from user_service.db import get_engine
 from user_service.main import create_app
 from user_service.settings import get_settings
 
+_CACHED_FACTORIES = (get_settings, get_engine, _verifier_from_settings)
+
 
 @pytest.fixture(autouse=True)
 def _fresh_settings() -> Iterator[None]:
-    get_settings.cache_clear()
-    get_engine.cache_clear()
+    for factory in _CACHED_FACTORIES:
+        factory.cache_clear()
     yield
-    get_settings.cache_clear()
-    get_engine.cache_clear()
+    for factory in _CACHED_FACTORIES:
+        factory.cache_clear()
 
 
 @pytest.fixture
