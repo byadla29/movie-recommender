@@ -32,8 +32,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from user_service.db import Base
+from user_service.domain.consents import CONSENT_PURPOSES
 
-CONSENT_PURPOSES = ("personalization_tracking",)
 MAX_LANGUAGES = 10
 
 

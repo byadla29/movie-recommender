@@ -1,7 +1,7 @@
 # TASKS
 
 Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.5 — consents API + `DELETE /v1/me`.**
+Next step: **2.6 — frontend sign-in with Clerk (needs owner's Clerk development keys).**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -49,7 +49,7 @@ Backend (no Clerk account needed):
 - [x] 2.2 user-service tables: users, preferences, languages, genres, consents (Alembic 0002)
 - [x] 2.3 user-service token validation (JWT via JWKS; 401 on missing/expired/tampered)
 - [x] 2.4 Preferences API `GET/PUT /v1/me/preferences` + ownership tests + contract update
-- [ ] 2.5 Consents API + `DELETE /v1/me`
+- [x] 2.5 Consents API + `DELETE /v1/me`
 
 Frontend (needs Clerk development keys in `frontend/.env.local`):
 - [ ] 2.6 Clerk sign-in/up/out + protected routes
@@ -79,6 +79,11 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.4 | row counts in local `user_db` after tests | 0 users / 0 preferences / 0 languages (rollback fixture works) |
 | 2.4 | `scripts/sync-vocab.sh --check`, OpenAPI `--check` | no drift; contract now lists `/v1/me/preferences` with HTTPBearer, 401/404/422/503 |
 | 2.4 | rebuilt container | `/ready` ok; vocab in image (22 languages); `/v1/me/preferences` → 503 "Authentication is not configured" (fail closed until 2.6) |
+| 2.5 | user-service ruff check/format, mypy (src, strict) | clean |
+| 2.5 | user-service unit tests | 92 passed (14 new: consent default, DB purposes = domain purposes, 401 ×3, unknown purpose, strict boolean ×4, extra fields, OpenAPI refs resolve, every `/v1/me` endpoint needs a bearer token) |
+| 2.5 | user-service integration tests vs Compose Postgres | 33 passed (7 new: default off + GET creates nothing, grant→withdraw, idempotent, per-user, delete removes all of Alice's rows and none of Bob's, delete twice, delete unknown user); 0 rows left |
+| 2.5 | OpenAPI contract | regenerated, no drift; shared `Problem` schema shrank file 1429 → 666 lines |
+| 2.5 | rebuilt container | `/ready` ok; consents/DELETE → 503 until auth configured |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -120,6 +125,7 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P2-d | PyJWT (+cryptography) verifies tokens locally via JWKS; RS256 only; 401 generic message; JWKS unreachable or auth unconfigured → 503 (fail closed) | Step 2.3 |
 | P2-e | Services get vocab as build-time copies (`scripts/sync-vocab.sh`, CI `--check`), because each Docker build only sees its own folder | Step 2.4 |
 | P2-f | Layering `api` (HTTP/Pydantic) → `domain` (pure rules) → `repositories` (SQL); write routes commit explicitly before responding | Step 2.4 |
+| P2-g | Consent: no row = not granted; strict booleans; latest answer only (no history yet). Deletion: per-service idempotent `DELETE /v1/me`, BFF orchestrates, identity deleted last | Step 2.5 |
 
 ## Blockers / needs from owner
 - Phase 2: a Clerk account + development instance keys (publishable + secret) in `frontend/.env.local`.

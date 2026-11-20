@@ -1,6 +1,70 @@
 {
   "components": {
     "schemas": {
+      "ConsentRequest": {
+        "additionalProperties": false,
+        "example": {
+          "granted": true
+        },
+        "properties": {
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "granted"
+        ],
+        "title": "ConsentRequest",
+        "type": "object"
+      },
+      "ConsentResponse": {
+        "properties": {
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "purpose",
+          "granted",
+          "updated_at"
+        ],
+        "title": "ConsentResponse",
+        "type": "object"
+      },
+      "ConsentsResponse": {
+        "properties": {
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentResponse"
+            },
+            "title": "Consents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "consents"
+        ],
+        "title": "ConsentsResponse",
+        "type": "object"
+      },
       "HealthResponse": {
         "properties": {
           "service": {
@@ -137,6 +201,75 @@
         "title": "PreferencesResponse",
         "type": "object"
       },
+      "Problem": {
+        "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detail"
+          },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Errors"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "instance",
+          "request_id"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
       "RankedLanguage": {
         "properties": {
           "code": {
@@ -241,6 +374,173 @@
         ]
       }
     },
+    "/v1/me": {
+      "delete": {
+        "description": "Idempotent: deleting an account that is already gone (or never existed) also returns 204, so a retry after a timeout is always safe.",
+        "operationId": "delete_me_v1_me_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired token"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication or database temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete my profile and all my user-service data",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/me/consents": {
+      "get": {
+        "operationId": "get_my_consents_v1_me_consents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired token"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication or database temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List my consent choices",
+        "tags": [
+          "consents"
+        ]
+      }
+    },
+    "/v1/me/consents/{purpose}": {
+      "put": {
+        "description": "Idempotent. Withdrawing is as easy as granting: send granted=false.",
+        "operationId": "put_my_consent_v1_me_consents__purpose__put",
+        "parameters": [
+          {
+            "description": "What the consent is for",
+            "in": "path",
+            "name": "purpose",
+            "required": true,
+            "schema": {
+              "const": "personalization_tracking",
+              "description": "What the consent is for",
+              "title": "Purpose",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired token"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unknown purpose or invalid body"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Authentication or database temporarily unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Grant or withdraw consent for one purpose",
+        "tags": [
+          "consents"
+        ]
+      }
+    },
     "/v1/me/preferences": {
       "get": {
         "operationId": "get_my_preferences_v1_me_preferences_get",
@@ -259,71 +559,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
-                  "properties": {
-                    "detail": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Detail"
-                    },
-                    "errors": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "additionalProperties": true,
-                            "type": "object"
-                          },
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Errors"
-                    },
-                    "instance": {
-                      "title": "Instance",
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Request Id"
-                    },
-                    "status": {
-                      "title": "Status",
-                      "type": "integer"
-                    },
-                    "title": {
-                      "title": "Title",
-                      "type": "string"
-                    },
-                    "type": {
-                      "title": "Type",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "title",
-                    "status",
-                    "instance",
-                    "request_id"
-                  ],
-                  "title": "Problem",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -333,71 +569,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
-                  "properties": {
-                    "detail": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Detail"
-                    },
-                    "errors": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "additionalProperties": true,
-                            "type": "object"
-                          },
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Errors"
-                    },
-                    "instance": {
-                      "title": "Instance",
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Request Id"
-                    },
-                    "status": {
-                      "title": "Status",
-                      "type": "integer"
-                    },
-                    "title": {
-                      "title": "Title",
-                      "type": "string"
-                    },
-                    "type": {
-                      "title": "Type",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "title",
-                    "status",
-                    "instance",
-                    "request_id"
-                  ],
-                  "title": "Problem",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -407,71 +579,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
-                  "properties": {
-                    "detail": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Detail"
-                    },
-                    "errors": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "additionalProperties": true,
-                            "type": "object"
-                          },
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Errors"
-                    },
-                    "instance": {
-                      "title": "Instance",
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Request Id"
-                    },
-                    "status": {
-                      "title": "Status",
-                      "type": "integer"
-                    },
-                    "title": {
-                      "title": "Title",
-                      "type": "string"
-                    },
-                    "type": {
-                      "title": "Type",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "title",
-                    "status",
-                    "instance",
-                    "request_id"
-                  ],
-                  "title": "Problem",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -516,71 +624,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
-                  "properties": {
-                    "detail": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Detail"
-                    },
-                    "errors": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "additionalProperties": true,
-                            "type": "object"
-                          },
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Errors"
-                    },
-                    "instance": {
-                      "title": "Instance",
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Request Id"
-                    },
-                    "status": {
-                      "title": "Status",
-                      "type": "integer"
-                    },
-                    "title": {
-                      "title": "Title",
-                      "type": "string"
-                    },
-                    "type": {
-                      "title": "Type",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "title",
-                    "status",
-                    "instance",
-                    "request_id"
-                  ],
-                  "title": "Problem",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -590,71 +634,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
-                  "properties": {
-                    "detail": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Detail"
-                    },
-                    "errors": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "additionalProperties": true,
-                            "type": "object"
-                          },
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Errors"
-                    },
-                    "instance": {
-                      "title": "Instance",
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Request Id"
-                    },
-                    "status": {
-                      "title": "Status",
-                      "type": "integer"
-                    },
-                    "title": {
-                      "title": "Title",
-                      "type": "string"
-                    },
-                    "type": {
-                      "title": "Type",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "title",
-                    "status",
-                    "instance",
-                    "request_id"
-                  ],
-                  "title": "Problem",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },
@@ -664,71 +644,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "description": "RFC 9457 problem details, as returned by every error response (for OpenAPI docs).",
-                  "properties": {
-                    "detail": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Detail"
-                    },
-                    "errors": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "additionalProperties": true,
-                            "type": "object"
-                          },
-                          "type": "array"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Errors"
-                    },
-                    "instance": {
-                      "title": "Instance",
-                      "type": "string"
-                    },
-                    "request_id": {
-                      "anyOf": [
-                        {
-                          "type": "string"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "title": "Request Id"
-                    },
-                    "status": {
-                      "title": "Status",
-                      "type": "integer"
-                    },
-                    "title": {
-                      "title": "Title",
-                      "type": "string"
-                    },
-                    "type": {
-                      "title": "Type",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "type",
-                    "title",
-                    "status",
-                    "instance",
-                    "request_id"
-                  ],
-                  "title": "Problem",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             },

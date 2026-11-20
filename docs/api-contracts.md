@@ -66,6 +66,22 @@ Validation: `region_code` must start with `country_code + "-"`; unknown language
   sorted; `onboarded_at` keeps its first value.
 - `AUTH_ISSUER` unset → every `/v1/me/*` call returns 503 "Authentication is not configured".
 
+**Implemented (step 2.5):** consents and account deletion.
+
+```http
+GET /v1/me/consents
+→ 200 { "consents": [ {"purpose": "personalization_tracking", "granted": false, "updated_at": null} ] }
+
+PUT /v1/me/consents/personalization_tracking   { "granted": true }
+→ 200 { "purpose": "personalization_tracking", "granted": true, "updated_at": "2026-11-20T…Z" }
+
+DELETE /v1/me
+→ 204 (no body; also 204 if already deleted)
+```
+- `updated_at: null` = never answered (treated as not granted). Unknown purpose → 422.
+- `granted` must be JSON `true`/`false`; `"yes"`, `"true"` or `1` → 422.
+- Error responses reference one shared `#/components/schemas/Problem` in the OpenAPI file.
+
 ```http
 GET /v1/me/watchlist?limit=2
 → 200 { "items": [ {"movie_id": "0b6c…", "added_at": "…"}, {"movie_id": "91aa…", "added_at": "…"} ],

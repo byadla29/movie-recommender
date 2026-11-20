@@ -4,7 +4,6 @@ Every function takes the user's `sub` (from the verified token), never a user ID
 request. That is the ownership rule: you can only ever reach your own rows.
 """
 
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -14,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from user_service.domain.preferences import ValidPreferences
 from user_service.models import User, UserGenre, UserLanguage, UserPreferences
+from user_service.repositories.users import get_or_create_user_id
 
 
 @dataclass(frozen=True)
@@ -24,21 +24,6 @@ class StoredPreferences:
     genres: tuple[str, ...]  # sorted
     onboarded_at: datetime
     updated_at: datetime
-
-
-def get_or_create_user_id(session: Session, user_sub: str) -> uuid.UUID:
-    """Find the user row for this identity, creating it on first use.
-
-    INSERT ... ON CONFLICT DO NOTHING is safe even if two first requests from the same user
-    arrive at the same moment: one inserts, the other quietly does nothing, both then read
-    the same row. (Check-then-insert in Python would race and fail with a duplicate key.)
-    """
-    session.execute(
-        pg_insert(User)
-        .values(user_sub=user_sub)
-        .on_conflict_do_nothing(index_elements=["user_sub"])
-    )
-    return session.scalars(select(User.id).where(User.user_sub == user_sub)).one()
 
 
 def replace_preferences(session: Session, user_sub: str, prefs: ValidPreferences) -> None:

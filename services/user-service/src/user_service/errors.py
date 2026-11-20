@@ -37,12 +37,29 @@ class Problem(BaseModel):
     errors: list[dict[str, Any]] | None = None
 
 
+PROBLEM_SCHEMA_REF = {"$ref": "#/components/schemas/Problem"}
+
+
 def problem_doc(description: str) -> dict[str, Any]:
-    """OpenAPI entry for one error status, e.g. responses={401: problem_doc("...")}."""
-    return {
-        "description": description,
-        "content": {PROBLEM_JSON: {"schema": Problem.model_json_schema()}},
-    }
+    """OpenAPI entry for one error status, e.g. responses={401: problem_doc("...")}.
+
+    Points at ONE shared `Problem` schema instead of repeating it in every response.
+    """
+    return {"description": description, "content": {PROBLEM_JSON: {"schema": PROBLEM_SCHEMA_REF}}}
+
+
+def register_problem_schema(app: FastAPI) -> None:
+    """Add the shared `Problem` schema to the generated OpenAPI document (once)."""
+    generate = app.openapi
+
+    def openapi_with_problem() -> dict[str, Any]:
+        spec = generate()  # FastAPI caches the dict it returns; we add to that same dict
+        spec.setdefault("components", {}).setdefault("schemas", {})["Problem"] = (
+            Problem.model_json_schema()
+        )
+        return spec
+
+    app.openapi = openapi_with_problem  # type: ignore[method-assign]
 
 
 def problem_response(

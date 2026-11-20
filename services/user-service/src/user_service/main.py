@@ -7,9 +7,11 @@ effects, and tests can build an app with whatever settings they need.
 
 from fastapi import FastAPI
 
+from user_service.api.account import router as account_router
+from user_service.api.consents import router as consents_router
 from user_service.api.health import router as health_router
 from user_service.api.preferences import router as preferences_router
-from user_service.errors import register_exception_handlers
+from user_service.errors import register_exception_handlers, register_problem_schema
 from user_service.logging_config import configure_logging
 from user_service.request_context import RequestContextMiddleware
 from user_service.settings import get_settings
@@ -30,4 +32,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(preferences_router)
+    app.include_router(consents_router)
+    app.include_router(account_router)
+    register_problem_schema(app)
     return app

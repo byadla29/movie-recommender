@@ -8,14 +8,13 @@ the caller, so one user cannot even *ask* for another user's data.
 """
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session
 
+from user_service.api.deps import AUTH_ERRORS, DbSession
 from user_service.auth import CurrentUser
-from user_service.db import get_session
 from user_service.domain.preferences import PreferencesInput, validate_preferences
 from user_service.domain.vocabulary import load_vocabulary
 from user_service.errors import problem_doc
@@ -26,13 +25,6 @@ from user_service.repositories.preferences import StoredPreferences
 MAX_GENRES = 5
 
 router = APIRouter(prefix="/v1/me", tags=["preferences"])
-
-DbSession = Annotated[Session, Depends(get_session)]
-
-AUTH_ERRORS: dict[int | str, dict[str, Any]] = {
-    401: problem_doc("Missing, invalid or expired token"),
-    503: problem_doc("Authentication or database temporarily unavailable"),
-}
 
 
 class PreferencesRequest(BaseModel):

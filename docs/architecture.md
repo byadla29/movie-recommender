@@ -112,6 +112,29 @@ migrating IdPs later needs a mapping table. (Decision D3 in `implementation-plan
 - **Config:** 12-factor env vars; `.env.example` per service with placeholders.
 - **Logging:** JSON logs; never log tokens, emails, or full request bodies of events.
 - **Versioning:** URL prefix `/v1`; breaking changes → `/v2` side by side.
+- **Consent:** privacy by default. No stored answer = not granted; a row exists only after
+  an explicit choice (JSON `true`/`false` only). Reading consents creates no data.
+  Phase 5: recommendation-service must check `personalization_tracking` before storing
+  interaction events. Limitation: only the latest answer + time is kept, not a history.
+
+### Account deletion
+
+Each service deletes only its own data, through its own idempotent endpoint; the BFF
+orchestrates (no service reaches into another's database):
+
+```
+User clicks "Delete my account" (settings page, step 2.9)
+  BFF ──DELETE /v1/me──► user-service           204 (profile, preferences, consents: cascade)
+      ──DELETE /v1/me──► recommendation-service  204 (events, features: Phase 5)
+      ──delete user────► Clerk (backend API)     identity removed (step 2.9)
+      └─ sign the user out
+```
+
+- Idempotent: "already gone" is also 204, so the BFF can safely retry after a timeout.
+- Order: application data first, identity last; if a step fails the user is still signed
+  in and can retry, instead of being left with data they can no longer reach.
+- Logs of a deletion contain no user identifier.
+- Implemented so far: user-service `DELETE /v1/me` (step 2.5).
 
 ## 8. Technology choices (and what we are deliberately *not* using yet)
 
