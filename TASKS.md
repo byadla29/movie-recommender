@@ -1,7 +1,7 @@
 # TASKS
 
 Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.6 — frontend sign-in with Clerk (needs owner's Clerk development keys).**
+Next step: **2.7 — BFF client for user-service (forward the Clerk token; configure user-service `AUTH_ISSUER`; confirm real token claims end to end).**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -52,7 +52,7 @@ Backend (no Clerk account needed):
 - [x] 2.5 Consents API + `DELETE /v1/me`
 
 Frontend (needs Clerk development keys in `frontend/.env.local`):
-- [ ] 2.6 Clerk sign-in/up/out + protected routes
+- [x] 2.6 Clerk sign-in/up/out + protected routes
 - [ ] 2.7 BFF client for user-service (forwards token, timeouts) + `/home` placeholder
 - [ ] 2.8 Onboarding wizard (region → languages → genres → consent)
 - [ ] 2.9 Settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks
@@ -84,6 +84,12 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.5 | user-service integration tests vs Compose Postgres | 33 passed (7 new: default off + GET creates nothing, grant→withdraw, idempotent, per-user, delete removes all of Alice's rows and none of Bob's, delete twice, delete unknown user); 0 rows left |
 | 2.5 | OpenAPI contract | regenerated, no drift; shared `Problem` schema shrank file 1429 → 666 lines |
 | 2.5 | rebuilt container | `/ready` ok; consents/DELETE → 503 until auth configured |
+| 2.6 | frontend lint, typecheck | clean |
+| 2.6 | `npm test` (Vitest) | 13 passed (6 new: proxy skips Clerk only for `/api/health`) |
+| 2.6 | `next build` with real keys and with keys blanked (CI case) | both succeed; `/`, `/home`, `/sign-in`, `/sign-up`, `/status` are Partial Prerender |
+| 2.6 | first Docker run without keys | **found bug**: every page 500 incl. health → container unhealthy; fixed (health skips Clerk; keys wired) |
+| 2.6 | rebuilt frontend container | healthy; `/`, `/status`, `/sign-in`, `/sign-up`, `/home` 200; signed-out `/home` → `/sign-in?redirect_url=…/home` |
+| 2.6 | real secret in image files | 0 files (only Clerk's own `startsWith("sk_test_")` code matches the prefix) |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -126,15 +132,20 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P2-e | Services get vocab as build-time copies (`scripts/sync-vocab.sh`, CI `--check`), because each Docker build only sees its own folder | Step 2.4 |
 | P2-f | Layering `api` (HTTP/Pydantic) → `domain` (pure rules) → `repositories` (SQL); write routes commit explicitly before responding | Step 2.4 |
 | P2-g | Consent: no row = not granted; strict booleans; latest answer only (no history yet). Deletion: per-service idempotent `DELETE /v1/me`, BFF orchestrates, identity deleted last | Step 2.5 |
+| P2-h | Clerk `@clerk/nextjs` 7.x; `proxy.ts` runs `clerkMiddleware()` (no route rules there; `createRouteMatcher` is deprecated); pages gate with `auth.protect()` inside `<Suspense>`; `/api/health` bypasses Clerk | Step 2.6 |
+| P2-i | Publishable key = Docker build arg (public, baked into JS); secret key = runtime-only `env_file` from `frontend/.env.local` | Step 2.6 |
 
 ## Blockers / needs from owner
-- Phase 2: a Clerk account + development instance keys (publishable + secret) in `frontend/.env.local`.
-- Step 2.6: confirm Clerk's issuer URL, JWKS path and token claims (`azp`, no `aud`) against
-  Clerk's current docs and a real token; step 2.3 assumed them from memory.
+- Step 2.7: confirm real token claims end to end. Clerk docs (read 2026-11-20) confirm:
+  `iss` = Frontend API URL, JWKS at `<iss>/.well-known/jwks.json`, `azp` present, no `aud`
+  by default; RS256 only shown in their example (not stated as default).
 - Phase 3: TMDB API key (fixtures work without it).
 
 ## Known issues / risks
 - Vitest fails on Windows when the shell cwd has a lowercase drive letter (`c:\`); run from `C:\` (see README).
+- Signed-out request to a protected page returns HTTP 200 with a streamed redirect (Clerk +
+  Cache Components trade-off); no protected content is rendered. Data is protected by the
+  services' token checks regardless.
 - Starlette warns that `httpx` in TestClient is deprecated in favour of `httpx2`; harmless for now.
 - 14 "high" npm audit findings are in dev-only dependencies; production deps report 0.
 - GitHub Action versions in CI are pinned to major tags, not commit SHAs (tighten in Phase 6).
