@@ -28,8 +28,8 @@ describe("PreferencesSummary", () => {
       />,
     );
 
-    expect(screen.getByText("IN")).toBeDefined();
-    expect(screen.getByText("te, en")).toBeDefined();
+    expect(screen.getByText("India")).toBeDefined();
+    expect(screen.getByText("Telugu (తెలుగు), English")).toBeDefined();
     expect(screen.getByText("Not set")).toBeDefined();
     expect(screen.getByText("None chosen")).toBeDefined();
   });

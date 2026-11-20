@@ -15,6 +15,7 @@ CHECK=false
 # service folder -> where the copies live inside it
 CONSUMERS=(
   "services/user-service/src/user_service/vocab"
+  "frontend/src/vocab" # names and choices for the onboarding form
 )
 
 status=0

@@ -1,7 +1,7 @@
 # TASKS
 
 Current phase: **Phase 2 — Identity & onboarding (in progress on branch `phase-2`)**
-Next step: **2.8 — onboarding wizard (region → languages → genres → consent).**
+Next step: **2.9 — settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks.**
 
 ## Phase 0 — Design (done)
 - [x] Inspect repository (only `CLAUDE.md` present; not yet a git repo)
@@ -54,7 +54,7 @@ Backend (no Clerk account needed):
 Frontend (needs Clerk development keys in `frontend/.env.local`):
 - [x] 2.6 Clerk sign-in/up/out + protected routes
 - [x] 2.7 BFF client for user-service (forwards token, timeouts) + `/home` placeholder
-- [ ] 2.8 Onboarding wizard (region → languages → genres → consent)
+- [x] 2.8 Onboarding form (region → languages → genres → consent; one page, four sections)
 - [ ] 2.9 Settings page (edit, consent, delete account) + Phase 2 docs and acceptance checks
 
 ### Verified (Phase 2)
@@ -95,6 +95,10 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | 2.7 | frontend lint, typecheck, `next build` (keys blanked) | clean |
 | 2.7 | `npm test` (Vitest) | 36 passed (23 new: client headers/timeout/status mapping/bounded retry/no token in results; summary states) |
 | 2.7 | **end to end** (owner signed in, opened `/home`) | page: "You haven't chosen…"; user-service logs: `GET /v1/me/preferences` → 404, no 401 → real Clerk token accepted (iss, azp, RS256, exp); 0 rows created; 0 tokens in logs |
+| 2.8 | frontend lint, typecheck, `next build` (keys blanked), `sync-vocab.sh --check` | clean; `/onboarding` is Partial Prerender |
+| 2.8 | `npm test` (Vitest) | 63 passed (27 new: vocab labels, form parsing/checks/server-error mapping/prefill, Server Action decisions incl. consent failure, form a11y labels, tracking off by default, errors keep choices) |
+| 2.8 | **end to end, flow A** (owner): `/home` → redirected to `/onboarding` → saved → `/home` shows names | user-service: GET prefs 404 ×2, GET consents 200, PUT prefs 200, PUT consent 200, GET prefs 200; DB: 1 user, codes only (country, 2 ranked languages, 5 genres, consent); 0 tokens in logs |
+| 2.8 | flow B (edit + error + re-save) | owner reported OK; logs show no second save, so the edit/re-save path is covered by automated tests only |
 
 ## Phase 3 — Catalog & UX
 - [ ] Catalog schema + fixture import
@@ -140,6 +144,7 @@ Frontend (needs Clerk development keys in `frontend/.env.local`):
 | P2-h | Clerk `@clerk/nextjs` 7.x; `proxy.ts` runs `clerkMiddleware()` (no route rules there; `createRouteMatcher` is deprecated); pages gate with `auth.protect()` inside `<Suspense>`; `/api/health` bypasses Clerk | Step 2.6 |
 | P2-i | Publishable key = Docker build arg (public, baked into JS); secret key = runtime-only `env_file` from `frontend/.env.local` | Step 2.6 |
 | P2-j | BFF→user-service: pure client (token + URL as inputs) + `server-only` wrapper getting the Clerk token; typed results; 1500 ms timeout; 1 retry for reads on "unavailable" only | Step 2.7 |
+| P2-k | Onboarding = one page, four fieldsets, real `<form>` + Server Action (works without JS); 5 ordered language slots; quick checks in the BFF, user-service authoritative; preferences then consent as two idempotent PUTs; idempotent PUTs retried once; `/home` redirects to `/onboarding` on 404; frontend gets vocab copies via `sync-vocab.sh` | Step 2.8 |
 
 ## Blockers / needs from owner
 - Phase 3: TMDB API key (fixtures work without it).

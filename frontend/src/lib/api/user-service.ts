@@ -130,6 +130,59 @@ async function readErrors(response: Response): Promise<FieldError[]> {
   return [];
 }
 
+export interface PreferencesInput {
+  country_code: string;
+  region_code: string | null;
+  languages: string[]; // in order of preference
+  genres: string[];
+}
+
+export interface Consent {
+  purpose: string;
+  granted: boolean;
+  updated_at: string | null; // null = never answered
+}
+
+type ReadOptions = Omit<CallOptions, "method" | "body">;
+
+export function putMyPreferences(
+  baseUrl: string,
+  token: string,
+  body: PreferencesInput,
+  options: ReadOptions = {},
+): Promise<UserServiceResult<Preferences>> {
+  // PUT replaces with exactly this body, so repeating it is harmless: one retry is safe.
+  return callUserService<Preferences>(baseUrl, "/v1/me/preferences", token, {
+    method: "PUT",
+    body,
+    retries: 1,
+    ...options,
+  });
+}
+
+export function getMyConsents(
+  baseUrl: string,
+  token: string,
+  options: ReadOptions = {},
+): Promise<UserServiceResult<{ consents: Consent[] }>> {
+  return callUserService(baseUrl, "/v1/me/consents", token, { retries: 1, ...options });
+}
+
+export function putMyConsent(
+  baseUrl: string,
+  token: string,
+  purpose: string,
+  granted: boolean,
+  options: ReadOptions = {},
+): Promise<UserServiceResult<Consent>> {
+  return callUserService<Consent>(baseUrl, `/v1/me/consents/${encodeURIComponent(purpose)}`, token, {
+    method: "PUT",
+    body: { granted },
+    retries: 1, // idempotent
+    ...options,
+  });
+}
+
 export function getMyPreferences(
   baseUrl: string,
   token: string,

@@ -1,4 +1,5 @@
 import type { Preferences, UserServiceResult } from "@/lib/api/user-service";
+import { labelFor } from "@/lib/vocab";
 
 /**
  * Shows the user's saved preferences, or a calm explanation of why we can't.
@@ -7,17 +8,17 @@ import type { Preferences, UserServiceResult } from "@/lib/api/user-service";
 export function PreferencesSummary({ result }: { result: UserServiceResult<Preferences> }) {
   if (result.ok) {
     const prefs = result.data;
-    const languages = [...prefs.languages].sort((a, b) => a.rank - b.rank).map((l) => l.code);
+    const languages = [...prefs.languages].sort((a, b) => a.rank - b.rank).map((l) => labelFor(l.code));
     return (
       <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
         <dt className="font-medium">Country</dt>
-        <dd>{prefs.country_code}</dd>
+        <dd>{labelFor(prefs.country_code)}</dd>
         <dt className="font-medium">Region</dt>
-        <dd>{prefs.region_code ?? "Not set"}</dd>
+        <dd>{prefs.region_code ? labelFor(prefs.region_code) : "Not set"}</dd>
         <dt className="font-medium">Languages</dt>
         <dd>{languages.join(", ")}</dd>
         <dt className="font-medium">Genres</dt>
-        <dd>{prefs.genres.length > 0 ? prefs.genres.join(", ") : "None chosen"}</dd>
+        <dd>{prefs.genres.length > 0 ? prefs.genres.map(labelFor).join(", ") : "None chosen"}</dd>
       </dl>
     );
   }
